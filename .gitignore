@@ -1,0 +1,4 @@
+dist/
+*.exe
+pg-wal-drain
+*.log
