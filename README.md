@@ -1,10 +1,12 @@
-# pg-wal-drain
+# 🐘 pg-wal-drain
 
 `pg-wal-drain` is a zero-dependency Go CLI tool for diagnosing and rescuing PostgreSQL clusters experiencing write-ahead log (WAL) disk exhaustion and crashes caused by abandoned or bloated replication slots.
 
-## The Core Technical Problems
+---
 
-### The Catch-22
+## 🔍 The Core Technical Problems
+
+### ⚠️ The Catch-22
 When PostgreSQL exhausts available disk space, the database engine crashes with:
 ```
 PANIC: could not write to file "base/...": No space left on device
@@ -15,20 +17,22 @@ FATAL: the database system is starting up
 ```
 All client connections over SQL are rejected. As a result, running `SELECT pg_drop_replication_slot('slot_name');` over SQL is impossible.
 
-### The `rm -f pg_wal/*` Disaster
+### 💥 The `rm -f pg_wal/*` Disaster
 Panicked operators often attempt to delete WAL files manually. Deleting unarchived segments or segments at or after the checkpoint redo point corrupts the database cluster, causing:
 ```
 PANIC: could not locate a valid checkpoint record
 ```
 Once corrupted, manual recovery requires `pg_resetwal` with potential loss of data consistency and transaction history.
 
-### How `pg-wal-drain` Solves It
-1. **Direct Binary Parser**: Directly deserializes `global/pg_control` without starting the PostgreSQL engine, extracting `CheckPointCopy.Redo`, `ThisTimeLineID`, and `wal_seg_size`.
-2. **Segment Cutoff Calculation**: Computes the exact earliest safe segment cutoff: `segNo = redoLSN / segSize` formatted as `%08X%08X%08X`.
-3. **Safe Evacuation**: Scans `pg_wal` and `pg_wal/archive_status/*.done`. Files with a lexicographical name strictly less than the active redo cutoff that have a corresponding `.done` archive status are classified as expendable. They can be safely evacuated to another directory or disk to free emergency space, allowing PostgreSQL to start up and finish crash recovery.
-4. **Automated Live Circuit Breaker**: Proactively monitors disk utilization via `syscall.Statfs`. When disk usage exceeds `--threshold` (default: 90%), it drops disconnected or lagging slots (`lag_bytes > 10GB`) and triggers `CHECKPOINT;` to recycle WAL before the disk reaches 100%.
+### 🛡️ How `pg-wal-drain` Solves It
+1. 🔍 **Direct Binary Parser**: Directly deserializes `global/pg_control` without starting the PostgreSQL engine, extracting `CheckPointCopy.Redo`, `ThisTimeLineID`, and `wal_seg_size`.
+2. ⚡ **Segment Cutoff Calculation**: Computes the exact earliest safe segment cutoff: `segNo = redoLSN / segSize` formatted as `%08X%08X%08X`.
+3. 📦 **Safe Evacuation**: Scans `pg_wal` and `pg_wal/archive_status/*.done`. Files with a lexicographical name strictly less than the active redo cutoff that have a corresponding `.done` archive status are classified as expendable. They can be safely evacuated to another directory or disk to free emergency space, allowing PostgreSQL to start up and finish crash recovery.
+4. 🛡️ **Automated Live Circuit Breaker**: Proactively monitors disk utilization via `syscall.Statfs`. When disk usage exceeds `--threshold` (default: 90%), it drops disconnected or lagging slots (`lag_bytes > 10GB`) and triggers `CHECKPOINT;` to recycle WAL before the disk reaches 100%.
 
-## Architecture
+---
+
+## 🏛️ Architecture
 
 ```
 pg-wal-drain/
@@ -58,15 +62,17 @@ pg-wal-drain/
 └── go.sum
 ```
 
-## CLI Commands
+---
 
-### 1. Live Audit
+## 🔧 CLI Commands
+
+### 1. 🔍 Live Audit
 Inspects replication slots, replication lag, and mount disk utilization:
 ```bash
 pg-wal-drain audit --dsn "postgres://user:pass@host:5432/db" [--wal-path /var/lib/postgresql/data/pg_wal]
 ```
 
-### 2. Live Circuit Breaker
+### 2. ⚡ Live Circuit Breaker
 Monitors disk utilization and drops idle/lagging slots when disk space crosses threshold:
 ```bash
 # Check and drop stale slots if disk usage exceeds 90%
@@ -76,7 +82,7 @@ pg-wal-drain protect --dsn "postgres://user:pass@host:5432/db" --threshold 90.0
 pg-wal-drain protect --dsn "postgres://user:pass@host:5432/db" --threshold 90.0 --dry-run
 ```
 
-### 3. Emergency Offline Rescue
+### 3. 🚑 Emergency Offline Rescue
 Used when PostgreSQL has crashed with zero bytes free:
 ```bash
 # Inspect crashed PGDATA without running PostgreSQL
@@ -88,16 +94,18 @@ pg-wal-drain offline-inspect --pgdata /var/lib/postgresql/data --evacuate-to /tm
 
 After space is freed, start PostgreSQL (`pg_ctl start -D ...`), drop the bloated replication slot (`SELECT pg_drop_replication_slot('...');`), and run `CHECKPOINT;`.
 
-## Building
+---
+
+## 📦 Building
 
 Target binary size is under 10MB across all platforms.
 
-### Using Go CLI:
+### 🔧 Using Go CLI:
 ```bash
 go build -trimpath -ldflags="-s -w" -o dist/pg-wal-drain ./cmd/pg-wal-drain
 ```
 
-### Using Makefile:
+### 🚀 Using Makefile:
 ```bash
 # Run tests and build
 make
@@ -106,14 +114,24 @@ make
 make cross-compile
 ```
 
-### Using PowerShell:
+### 🪟 Using PowerShell:
 ```powershell
 .\build.ps1
 ```
 
-## Testing
+---
+
+## 🩺 Testing
 
 Run all unit tests:
 ```bash
 go test -v ./...
 ```
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2026 x7ssss
